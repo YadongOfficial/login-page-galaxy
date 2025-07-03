@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="id" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Sign Up 3D - Tema Galaksi</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Mencegah scrollbar dari canvas */
+        }
+
+        /* Canvas 3D akan ditempatkan di latar belakang */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        /* Efek Glassmorphism untuk kontainer form */
+        .form-wrapper {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: background 0.3s, border 0.3s;
+        }
+
+        /* Style mode gelap untuk efek glassmorphism */
+        .dark .form-wrapper {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Style untuk toggle pengalih tema */
+        .theme-switcher-label {
+            width: 50px;
+            height: 26px;
+            background-color: #4A5568; /* gray-700 */
+            border-radius: 9999px;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .dark .theme-switcher-label {
+            background-color: #A0AEC0; /* gray-400 */
+        }
+        .theme-switcher-ball {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 22px;
+            height: 22px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+        #theme-switcher:checked + .theme-switcher-label .theme-switcher-ball {
+            transform: translateX(24px);
+        }
+
+        /* Transisi halus untuk visibilitas form */
+        .form-container {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+        .form-hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+        }
+        
+        /* Loading spinner */
+        .loader {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #FFF;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
+    <!-- Canvas Latar Belakang 3D -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Kontainer utama untuk UI -->
+    <div class="relative min-h-screen w-full flex flex-col items-center justify-center p-4">
+        
+        <!-- Header dengan Pengalih Tema dan Bahasa -->
+        <div class="absolute top-5 right-5 flex items-center space-x-4 z-10">
+            <!-- Pilihan Bahasa -->
+            <select id="language-selector" class="bg-white/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500">
+                <option value="id">Bahasa Indonesia</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="zh">中文</option>
+                <option value="ja">日本語</option>
+            </select>
+            <!-- Pengalih Tema -->
+            <div>
+                <input type="checkbox" id="theme-switcher" class="hidden">
+                <label for="theme-switcher" class="theme-switcher-label">
+                    <div class="theme-switcher-ball"></div>
+                </label>
+            </div>
+        </div>
+        
+        <!-- Wrapper Form dengan Glassmorphism -->
+        <div class="form-wrapper w-full max-w-md p-8 rounded-2xl shadow-lg">
+            
+            <!-- Form Login -->
+            <div id="login-form" class="form-container">
+                <h2 class="text-3xl font-bold text-center mb-1" data-lang="loginTitle">Selamat Datang</h2>
+                <p class="text-center text-gray-600 dark:text-gray-400 mb-6" data-lang="loginSubtitle">Silakan masuk untuk melanjutkan</p>
+                <form id="login-actual-form">
+                    <div class="mb-4">
+                        <label for="login-email" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" data-lang="emailLabel">Email</label>
+                        <input type="email" id="login-email" class="w-full px-4 py-2 bg-white/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition" data-lang-placeholder="emailPlaceholder" placeholder="anda@email.com" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="login-password" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" data-lang="passwordLabel">Password</label>
+                        <input type="password" id="login-password" class="w-full px-4 py-2 bg-white/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300" data-lang="loginButton">Masuk</button>
+                </form>
+                
+                <div class="my-4 flex items-center">
+                    <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                    <span class="flex-shrink mx-4 text-xs text-gray-500 dark:text-gray-400" data-lang="loginOrWith">atau lanjutkan dengan</span>
+                    <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                </div>
+
+                <div class="flex justify-center space-x-3">
+                    <button type="button" class="p-2 border border-gray-300 dark:border-gray-600 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                        <span class="sr-only">Login with Google</span>
+                        <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.021,35.596,44,30.138,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                    </button>
+                    <button type="button" class="p-2 border border-gray-300 dark:border-gray-600 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                        <span class="sr-only">Login with Microsoft</span>
+                        <svg class="w-5 h-5" viewBox="0 0 21 21"><path fill="#f25022" d="M1 1h9v9H1z"></path><path fill="#00a4ef" d="M1 11h9v9H1z"></path><path fill="#7fba00" d="M11 1h9v9h-9z"></path><path fill="#ffb900" d="M11 11h9v9h-9z"></path></svg>
+                    </button>
+                    <button type="button" class="p-2 border border-gray-300 dark:border-gray-600 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                        <span class="sr-only">Login with Apple</span>
+                        <svg class="w-5 h-5 text-gray-800 dark:text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M19.364 15.364c-.786.857-1.571 1.857-2.357 1.857s-1.071-.714-2.214- .714c-1.214 0-1.857.714-2.929.714s-1.5-.857-2.286-1.786c-1.286-1.5-2.214-4.286-1.214-6.214.5-.929 1.5-1.571 2.571-1.571.929 0 1.571.571 2.214.571.714 0 1.5-.571 2.5-.571.929 0 2.214.786 2.714 2.071-.214.143-.429.286-.643.429-.571.357-1.143.786-1.143 1.571s.643 1.214 1.286 1.571c.214.143.429.286.643.429.071.5-.143 1.071-.429 1.571zm-3.214-10.429c.643-.786 1.071-1.857.929-2.929-.857.071-1.857.643-2.5 1.429-.571.643-1.214 1.786-1.071 2.786.929.071 1.929-.5 2.643-1.286z"></path></svg>
+                    </button>
+                </div>
+                
+                <p class="text-center mt-6 text-sm">
+                    <span data-lang="loginPrompt">Belum punya akun?</span> <a href="#" id="show-signup" class="font-medium text-blue-500 hover:underline" data-lang="loginLink">Daftar di sini</a>
+                </p>
+            </div>
+
+            <!-- Form Sign Up (Awalnya tersembunyi) -->
+            <div id="signup-form" class="form-container form-hidden absolute top-8 left-0 right-0 p-8">
+                <h2 class="text-3xl font-bold text-center mb-1" data-lang="signupTitle">Buat Akun Baru</h2>
+                <p class="text-center text-gray-600 dark:text-gray-400 mb-6" data-lang="signupSubtitle">Bergabunglah bersama kami!</p>
+                <form onsubmit="event.preventDefault();">
+                    <div class="mb-4">
+                        <label for="signup-username" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" data-lang="usernameLabel">Username</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" id="signup-username" class="w-full px-4 py-2 bg-white/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition" data-lang-placeholder="usernamePlaceholder" placeholder="username_unik" required>
+                            <!-- NEW: Gemini Username Suggester Button -->
+                            <button type="button" id="suggest-username-btn" class="p-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition" title="Dapatkan saran nama pengguna dari AI">
+                                ✨
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="signup-email" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" data-lang="emailLabel">Email</label>
+                        <input type="email" id="signup-email" class="w-full px-4 py-2 bg-white/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition" data-lang-placeholder="emailPlaceholder" placeholder="anda@email.com" required>
+                    </div>
+                    <div class="mb-6">
+                        <label for="signup-password" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" data-lang="passwordLabel">Password</label>
+                        <input type="password" id="signup-password" class="w-full px-4 py-2 bg-white/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300" data-lang="signupButton">Daftar</button>
+                </form>
+                <p class="text-center mt-6 text-sm">
+                    <span data-lang="signupPrompt">Sudah punya akun?</span> <a href="#" id="show-login" class="font-medium text-blue-500 hover:underline" data-lang="signupLink">Masuk di sini</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- NEW: Modal for AI Welcome Message -->
+    <div id="welcome-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 text-center transform scale-95 transition-transform duration-300">
+            <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2" data-lang="welcomeModalTitle">Login Berhasil!</h3>
+            <p id="welcome-message" class="text-gray-600 dark:text-gray-300 mb-6 min-h-[48px] flex items-center justify-center"></p>
+            <button id="close-welcome-modal" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition" data-lang="closeButton">Tutup</button>
+        </div>
+    </div>
+
+    <!-- Pustaka Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            let scene, camera, renderer, ambientLight, directionalLight;
+            let galaxyGroup, stars;
+            let targetRotation = 0;
+            let mouseX = 0, mouseY = 0;
+            const clock = new THREE.Clock();
+
+            // --- Kamus Bahasa ---
+            const translations = {
+                id: { loginTitle: "Selamat Datang", loginSubtitle: "Silakan masuk untuk melanjutkan", emailLabel: "Email", passwordLabel: "Password", usernameLabel: "Username", loginButton: "Masuk", loginPrompt: "Belum punya akun?", loginLink: "Daftar di sini", signupTitle: "Buat Akun Baru", signupSubtitle: "Bergabunglah bersama kami!", signupButton: "Daftar", signupPrompt: "Sudah punya akun?", signupLink: "Masuk di sini", emailPlaceholder: "anda@email.com", usernamePlaceholder: "username_unik", loginOrWith: "atau lanjutkan dengan", welcomeModalTitle: "Login Berhasil!", closeButton: "Tutup" },
+                en: { loginTitle: "Welcome Back", loginSubtitle: "Please sign in to continue", emailLabel: "Email", passwordLabel: "Password", usernameLabel: "Username", loginButton: "Sign In", loginPrompt: "Don't have an account?", loginLink: "Sign up here", signupTitle: "Create a New Account", signupSubtitle: "Join us today!", signupButton: "Sign Up", signupPrompt: "Already have an account?", signupLink: "Sign in here", emailPlaceholder: "you@email.com", usernamePlaceholder: "unique_username", loginOrWith: "or continue with", welcomeModalTitle: "Login Successful!", closeButton: "Close" },
+                es: { loginTitle: "Bienvenido de Nuevo", loginSubtitle: "Por favor, inicia sesión para continuar", emailLabel: "Correo Electrónico", passwordLabel: "Contraseña", usernameLabel: "Nombre de usuario", loginButton: "Iniciar Sesión", loginPrompt: "¿No tienes una cuenta?", loginLink: "Regístrate aquí", signupTitle: "Crear una Nueva Cuenta", signupSubtitle: "¡Únete a nosotros hoy!", signupButton: "Registrarse", signupPrompt: "¿Ya tienes una cuenta?", signupLink: "Inicia sesión aquí", emailPlaceholder: "tu@email.com", usernamePlaceholder: "usuario_único", loginOrWith: "o continuar con", welcomeModalTitle: "¡Inicio de Sesión Exitoso!", closeButton: "Cerrar" },
+                zh: { loginTitle: "欢迎回来", loginSubtitle: "请登录以继续", emailLabel: "电子邮件", passwordLabel: "密码", usernameLabel: "用户名", loginButton: "登录", loginPrompt: "没有帐户？", loginLink: "在此注册", signupTitle: "创建新帐户", signupSubtitle: "今天就加入我们！", signupButton: "注册", signupPrompt: "已经有帐户？", signupLink: "在此登录", emailPlaceholder: "you@email.com", usernamePlaceholder: "独特的用户名", loginOrWith: "或继续", welcomeModalTitle: "登录成功！", closeButton: "关闭" },
+                ja: { loginTitle: "おかえりなさい", loginSubtitle: "続けるにはサインインしてください", emailLabel: "Eメール", passwordLabel: "パスワード", usernameLabel: "ユーザー名", loginButton: "サインイン", loginPrompt: "アカウントをお持ちでないですか？", loginLink: "ここでサインアップ", signupTitle: "新しいアカウントを作成", signupSubtitle: "今日から参加しましょう！", signupButton: "サインアップ", signupPrompt: "すでにアカウントをお持ちですか？", signupLink: "ここでサインイン", emailPlaceholder: "you@email.com", usernamePlaceholder: "ユニークなユーザー名", loginOrWith: "または以下で続行", welcomeModalTitle: "ログイン成功！", closeButton: "閉じる" }
+            };
+
+            // --- Seleksi Elemen DOM ---
+            const themeSwitcher = document.getElementById('theme-switcher');
+            const langSelector = document.getElementById('language-selector');
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            const showSignupBtn = document.getElementById('show-signup');
+            const showLoginBtn = document.getElementById('show-login');
+            const htmlElement = document.documentElement;
+            // NEW: Gemini feature elements
+            const suggestUsernameBtn = document.getElementById('suggest-username-btn');
+            const signupUsernameInput = document.getElementById('signup-username');
+            const loginActualForm = document.getElementById('login-actual-form');
+            const welcomeModal = document.getElementById('welcome-modal');
+            const welcomeMessageEl = document.getElementById('welcome-message');
+            const closeWelcomeModalBtn = document.getElementById('close-welcome-modal');
+
+
+            // --- Gemini API Helper Function ---
+            async function callGemini(prompt) {
+                const apiKey = ""; // API key is handled by the environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                const payload = {
+                    contents: [{
+                        parts: [{ text: prompt }]
+                    }]
+                };
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API request failed with status ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        return result.candidates[0].content.parts[0].text;
+                    } else {
+                        throw new Error("Invalid response structure from API");
+                    }
+                } catch (error) {
+                    console.error("Gemini API call failed:", error);
+                    return null; // Return null on failure
+                }
+            }
+
+            // --- Gemini Feature Logic ---
+            suggestUsernameBtn.addEventListener('click', async () => {
+                const originalContent = suggestUsernameBtn.innerHTML;
+                suggestUsernameBtn.innerHTML = '<div class="loader"></div>';
+                suggestUsernameBtn.disabled = true;
+
+                const prompt = "Suggest a single, cool, unique, space-themed username. Examples: NovaDrifter, CelestialVoyager, QuasarKnight. Only return the username, nothing else.";
+                const suggestion = await callGemini(prompt);
+
+                if (suggestion) {
+                    signupUsernameInput.value = suggestion.trim().replace(/[^a-zA-Z0-9_]/g, ''); // Clean up suggestion
+                } else {
+                    // Fallback in case of API error
+                    signupUsernameInput.value = `StarGazer${Math.floor(Math.random() * 9000) + 1000}`;
+                }
+                
+                suggestUsernameBtn.innerHTML = originalContent;
+                suggestUsernameBtn.disabled = false;
+            });
+
+            loginActualForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                welcomeMessageEl.innerHTML = '<div class="loader !border-blue-600 dark:!border-blue-400"></div>';
+                welcomeModal.classList.remove('opacity-0', 'pointer-events-none');
+                welcomeModal.querySelector('div').classList.remove('scale-95');
+
+                const prompt = `Create a short, epic, and inspiring space-themed welcome message for a user who just logged in. The message should be one sentence. Language: ${langSelector.value}`;
+                const message = await callGemini(prompt);
+
+                if (message) {
+                    welcomeMessageEl.textContent = message.trim();
+                } else {
+                    welcomeMessageEl.textContent = translations[langSelector.value].loginTitle || "Welcome Back!";
+                }
+            });
+            
+            closeWelcomeModalBtn.addEventListener('click', () => {
+                welcomeModal.classList.add('opacity-0', 'pointer-events-none');
+                welcomeModal.querySelector('div').classList.add('scale-95');
+            });
+
+
+            // --- Manajemen Bahasa ---
+            const updateLanguage = (lang) => {
+                document.querySelectorAll('[data-lang]').forEach(el => {
+                    const key = el.getAttribute('data-lang');
+                    if (translations[lang] && translations[lang][key]) el.innerText = translations[lang][key];
+                });
+                document.querySelectorAll('[data-lang-placeholder]').forEach(el => {
+                    const key = el.getAttribute('data-lang-placeholder');
+                    if (translations[lang] && translations[lang][key]) el.placeholder = translations[lang][key];
+                });
+                htmlElement.lang = lang;
+                localStorage.setItem('language', lang);
+            };
+
+            // --- Manajemen Tema ---
+            const updateTheme = (isDark) => {
+                htmlElement.classList.toggle('dark', isDark);
+                if (scene) {
+                    const newLightColor = isDark ? 0xaaaaaa : 0xffffff;
+                    ambientLight.color.setHex(newLightColor);
+                    directionalLight.color.setHex(newLightColor);
+                }
+            };
+            
+            // --- Inisialisasi Tema dan Bahasa ---
+            const savedLang = localStorage.getItem('language') || 'id';
+            langSelector.value = savedLang;
+            updateLanguage(savedLang);
+            langSelector.addEventListener('change', () => updateLanguage(langSelector.value));
+
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const savedTheme = localStorage.getItem('theme');
+            let isDarkMode = savedTheme ? savedTheme === 'dark' : prefersDark;
+            themeSwitcher.checked = isDarkMode;
+            updateTheme(isDarkMode);
+            themeSwitcher.addEventListener('change', () => {
+                isDarkMode = themeSwitcher.checked;
+                localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+                updateTheme(isDarkMode);
+            });
+
+            // --- Pengaturan Scene 3D (Three.js) ---
+            function init3D() {
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.z = 5;
+
+                const canvas = document.getElementById('bg-canvas');
+                renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+                ambientLight = new THREE.AmbientLight(isDarkMode ? 0xaaaaaa : 0xffffff, 0.5);
+                scene.add(ambientLight);
+                directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(5, 5, 5);
+                scene.add(directionalLight);
+                
+                galaxyGroup = new THREE.Group();
+                scene.add(galaxyGroup);
+
+                const parameters = {
+                    count: 100000,
+                    size: 0.01,
+                    radius: 5,
+                    branches: 5,
+                    spin: 1,
+                    randomness: 0.2,
+                    randomnessPower: 3,
+                    insideColor: '#ff6030',
+                    outsideColor: '#1b3984'
+                };
+
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(parameters.count * 3);
+                const colors = new Float32Array(parameters.count * 3);
+                const colorInside = new THREE.Color(parameters.insideColor);
+                const colorOutside = new THREE.Color(parameters.outsideColor);
+
+                for(let i = 0; i < parameters.count; i++) {
+                    const i3 = i * 3;
+                    const radius = Math.random() * parameters.radius;
+                    const spinAngle = radius * parameters.spin;
+                    const branchAngle = (i % parameters.branches) / parameters.branches * Math.PI * 2;
+
+                    const randomX = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * radius;
+                    const randomY = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * radius;
+                    const randomZ = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * radius;
+
+                    positions[i3] = Math.cos(branchAngle + spinAngle) * radius + randomX;
+                    positions[i3 + 1] = randomY;
+                    positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+
+                    const mixedColor = colorInside.clone();
+                    mixedColor.lerp(colorOutside, radius / parameters.radius);
+                    colors[i3] = mixedColor.r;
+                    colors[i3 + 1] = mixedColor.g;
+                    colors[i3 + 2] = mixedColor.b;
+                }
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+                const material = new THREE.PointsMaterial({
+                    size: parameters.size,
+                    sizeAttenuation: true,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending,
+                    vertexColors: true
+                });
+
+                stars = new THREE.Points(geometry, material);
+                galaxyGroup.add(stars);
+
+
+                window.addEventListener('resize', onWindowResize, false);
+                document.addEventListener('mousemove', onMouseMove, false);
+
+                animate();
+            }
+
+            // --- Animasi dan Interaksi 3D ---
+            function animate() {
+                requestAnimationFrame(animate);
+                const elapsedTime = clock.getElapsedTime();
+
+                galaxyGroup.rotation.y = elapsedTime * 0.025;
+                
+                galaxyGroup.rotation.z += (targetRotation - galaxyGroup.rotation.z) * 0.05;
+
+                camera.position.x += (mouseX * 2 - camera.position.x) * 0.05;
+                camera.position.y += (-mouseY * 2 - camera.position.y) * 0.05;
+                camera.lookAt(scene.position);
+
+                renderer.render(scene, camera);
+            }
+
+            function onWindowResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            function onMouseMove(event) {
+                mouseX = (event.clientX / window.innerWidth) - 0.5;
+                mouseY = (event.clientY / window.innerHeight) - 0.5;
+            }
+
+            // --- Logika Pergantian Form ---
+            function switchForms(showSignup) {
+                const rotationAmount = Math.PI; 
+                if (showSignup) {
+                    targetRotation += rotationAmount;
+                } else {
+                    targetRotation -= rotationAmount;
+                }
+                setTimeout(() => {
+                    loginForm.classList.toggle('form-hidden', showSignup);
+                    signupForm.classList.toggle('form-hidden', !showSignup);
+                }, 250);
+            }
+
+            showSignupBtn.addEventListener('click', (e) => { e.preventDefault(); switchForms(true); });
+            showLoginBtn.addEventListener('click', (e) => { e.preventDefault(); switchForms(false); });
+
+            init3D();
+        });
+    </script>
+</body>
+</html>
